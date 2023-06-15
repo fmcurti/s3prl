@@ -118,6 +118,7 @@ class DownstreamExpert(nn.Module):
         records["filename"] += filenames
         records["predict"] += [self.test_dataset.idx2emotion[idx] for idx in predicted_classid.cpu().tolist()]
         records["truth"] += [self.test_dataset.idx2emotion[idx] for idx in labels.cpu().tolist()]
+        records["logits"] += predicted.cpu().tolist()
 
         return loss
 
@@ -143,11 +144,11 @@ class DownstreamExpert(nn.Module):
 
         if mode in ["dev", "test"]:
             with open(Path(self.expdir) / f"{mode}_{self.fold}_predict.txt", "w") as file:
-                line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["predict"])]
+                line = [f"{f},{e},{l[0]},{l[1]},{l[2]},{l[3]}\n" for f, e, l in zip(records["filename"], records["predict"], records["logits"])]
                 file.writelines(line)
 
             with open(Path(self.expdir) / f"{mode}_{self.fold}_truth.txt", "w") as file:
-                line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["truth"])]
+                line = [f"{f},{e}\n" for f, e in zip(records["filename"], records["truth"])]
                 file.writelines(line)
 
         return save_names
