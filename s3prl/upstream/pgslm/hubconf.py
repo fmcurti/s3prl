@@ -1,4 +1,6 @@
 from .expert import UpstreamExpert as _UpstreamExpert
+import urllib.request
+import torch
 
 
 def pgslm(*args, **kwargs):
@@ -27,4 +29,13 @@ def pgslm(*args, **kwargs):
 
     Our run_downstream.py and downstream/runner.py follows the first usage
     """
+    return _UpstreamExpert(*args, **kwargs)
+
+def pgslm_download_ckpt(*args, **kwargs):
+    CKPT_URL = "https://dl.fbaipublicfiles.com/textless_nlp/pgslm/ulm_checkpoints/continuous_prosody_shift_1_1.pt"
+
+    urllib.request.urlretrieve(CKPT_URL, './upstream/pgslm/checkpoints/continuous_prosody_shift_1_1.pt')
+    checkpoint = torch.load("./upstream/pgslm/checkpoints/continuous_prosody_shift_1_1.pt")
+    checkpoint['cfg']['task']['data'] = './upstream/pgslm/checkpoints/data_config.json'
+    torch.save(checkpoint, './upstream/pgslm/checkpoints/continuous_prosody_shift_1_1.pt')
     return _UpstreamExpert(*args, **kwargs)

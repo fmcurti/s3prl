@@ -90,9 +90,8 @@ class UpstreamExpert(UpstreamBase):
             f0_quantizer=None,
         )
         
-        #precalculate_encodings(self.encoder)
         self.encoding_dict = torch.load('IEMOCAP_Encoded.pt')
-        models, model_args, task = checkpoint_utils.load_model_ensemble_and_task(["/home/fcurti/tesis/textlesslib/LM/hubert100_ulm/checkpoint_best_config.pt"])
+        models, model_args, task = checkpoint_utils.load_model_ensemble_and_task(["./upstream/pgslm/checkpoints/continuous_prosody_shift_1_1.pt"])
         self.ulm = models[0]
         self.unit_pad = task.source_dictionary.pad()
         
