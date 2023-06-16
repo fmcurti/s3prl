@@ -12,7 +12,9 @@ from tqdm import tqdm
 from ..interfaces import UpstreamBase
 from ...downstream.emotion.dataset import IEMOCAPDataset
 
-sys.path.append(os.path.dirname('/home/fcurti/tesis/textlesslib/textless'))
+TEXTLESSLIB_PATH = os.getenv('TEXTLESSLIB_PATH','/home/fcurti/tesis/textlesslib/textless')
+
+sys.path.append(os.path.dirname(TEXTLESSLIB_PATH))
 from textless.data.speech_encoder import SpeechEncoder
 from textless.data.f0_preprocess import SpeakerMeanNormalize, PromptNormalize
 from fairseq import checkpoint_utils
