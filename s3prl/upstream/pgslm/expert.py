@@ -137,10 +137,31 @@ class UpstreamExpert(UpstreamBase):
             length=max_len
         ).cuda()
         ulm_forward = self.ulm(units, durations, f0)
-
-
+        
+            
+        self.interleave_hidden_states(max_len, encoded_audios)
         # The "hidden_states" key will be used as default in many cases
         # Others keys in this example are presented for SUPERB Challenge
         #return {
         #    "hidden_states": ulm_forward['token'],
         #}
+
+
+    def interleave_hidden_states(self, max_len, encoded_audios):
+        new_hook_hiddens = []
+        for hidden_state in self._hook_hiddens:
+            new_hiddens = []
+            for audio_index, layer_state in enumerate(hidden_state[1]):
+                audio = encoded_audios[audio_index]
+                audio_length = audio['units'].size()[0]
+                new_hidden = torch.repeat_interleave(layer_state[:audio_length,:],audio['durations'],dim=0)
+                new_size = new_hidden.size()
+                zero_padding = torch.zeros(max_len-new_size[0], new_size[1]).cuda()
+                new_hidden = torch.cat((new_hidden, zero_padding))
+                new_hiddens.append(new_hidden)
+            new_hook_hiddens.append((hidden_state[0],torch.stack(new_hiddens)))
+            
+        self._hook_hiddens.clear()
+        self._hook_hiddens.extend(new_hook_hiddens)
+
+

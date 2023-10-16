@@ -34,6 +34,31 @@ class SelfAttentionPooling(nn.Module):
         return utter_rep
 
 
+class LinearModel(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        hidden_dim,
+        kernel_size,
+        padding,
+        pooling,
+        dropout,
+        output_class_num,
+        **kwargs,
+    ):
+        super(LinearModel, self).__init__()
+        self.pooling = nn.AvgPool1d(256)
+        self.out_layer = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_class_num),
+        )
+
+    def forward(self, features, att_mask):
+        out = self.pooling(features).squeeze(-1)
+        predicted = self.out_layer(out)
+        return predicted
+
 class CNNSelfAttention(nn.Module):
     def __init__(
         self,
