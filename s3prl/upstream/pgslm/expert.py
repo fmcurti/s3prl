@@ -23,7 +23,7 @@ DENSE_MODEL_NAME = "hubert-base-ls960"
 QUANTIZER_NAME = "kmeans"
 VOCAB_SIZE = 100
 
-def collate_tensors(stream, pad, length):
+def collate_tensors(stream, pad, length, left_pad=False):
     """
     >>> tensors = [torch.tensor(x) for x in [[1,2,3], [1]]]
     >>> pad = 0
@@ -36,9 +36,13 @@ def collate_tensors(stream, pad, length):
     n_samples = len(stream)
 
     collated = stream[0].new_full((n_samples, length), pad)
-
-    for i, v in enumerate(stream):
-        collated[i, : v.size(0)] = v
+    if left_pad:
+        for i, v in enumerate(stream):
+            collated[i, - v.size(0) :] = v
+    else:
+        for i, v in enumerate(stream):
+            collated[i, : v.size(0)] = v
+        
 
     return collated
 
@@ -63,7 +67,20 @@ def precalculate_encodings(encoder):
         encoded_wavs[filename] = encoded_audio
     torch.save(encoded_wavs, 'IEMOCAP_Encoded.pt')
         
-        
+ 
+def hook_fn_all_timesteps(input, output):
+    return output[0].transpose(0, 1)
+
+def hook_fn_input(input, output):
+    return input[0].transpose(0, 1)
+
+
+def hook_fn_last_timestep(input, output):
+    return output[0][-1][:,None]
+
+def postprocess(xs):
+    return xs
+       
 class UpstreamExpert(UpstreamBase):
     def __init__(self, ckpt: str = None, model_config: str = None, **kwargs):
         """
@@ -98,7 +115,7 @@ class UpstreamExpert(UpstreamBase):
         self.unit_pad = task.source_dictionary.pad()
         
         for i in range(12):
-            self.add_hook(f"self.ulm.decoder.layers[{i}]", lambda input, output: output[0].transpose(0, 1))
+            self.add_hook(f"self.ulm.decoder.layers[{i}]", hook_fn_all_timesteps)
         
     def get_downsample_rates(self, key: str) -> int:
         return 320
@@ -112,7 +129,7 @@ class UpstreamExpert(UpstreamBase):
         # wavs = pad_sequence(wavs, batch_first=True)
         # wavs: (batch_size, max_len, 1)
         
-        max_len = int(max([s.size()[0] for s in wavs]) / self.get_downsample_rates('a'))
+        #max_len = int(max([s.size()[0] for s in wavs]) / self.get_downsample_rates('a'))
         
         encoded_audios = []
         if filenames is None:
@@ -127,6 +144,9 @@ class UpstreamExpert(UpstreamBase):
             for file in filenames:
                 encoded_audios.append(self.encoding_dict[file]) 
         
+        feature_lengths = [s["units"].size(0) for s in encoded_audios]
+        max_len = max(feature_lengths)
+        
         units = collate_tensors([s["units"] for s in encoded_audios], pad=self.unit_pad, length=max_len).cuda()
         f0 = collate_tensors(
             [s["f0"] for s in encoded_audios], pad=torch.zeros_like(encoded_audios[0]["f0"][0]), length=max_len
@@ -134,17 +154,16 @@ class UpstreamExpert(UpstreamBase):
         durations = collate_tensors(
             [s["durations"] for s in encoded_audios],
             pad=torch.zeros_like(encoded_audios[0]["durations"][0]),
-            length=max_len
+            length=max_len,
         ).cuda()
         ulm_forward = self.ulm(units, durations, f0)
         
-            
-        self.interleave_hidden_states(max_len, encoded_audios)
+        #self.interleave_hidden_states(max_len, encoded_audios)
         # The "hidden_states" key will be used as default in many cases
         # Others keys in this example are presented for SUPERB Challenge
-        #return {
-        #    "hidden_states": ulm_forward['token'],
-        #}
+        return {
+            "feature_lengths": feature_lengths,
+        }
 
 
     def interleave_hidden_states(self, max_len, encoded_audios):
@@ -165,3 +184,9 @@ class UpstreamExpert(UpstreamBase):
         self._hook_hiddens.extend(new_hook_hiddens)
 
 
+    def unpad_hooks(self, min_length):
+        names, hiddens = zip(*self._hook_hiddens)
+        new_hook_hiddens = [hidden[:, :min_length, :] for hidden in hiddens]
+            
+        self._hook_hiddens.clear()
+        self._hook_hiddens.extend(list(zip(names, new_hook_hiddens)))
