@@ -150,5 +150,10 @@ class DownstreamExpert(nn.Module):
             with open(Path(self.expdir) / f"{mode}_{self.fold}_truth.txt", "w") as file:
                 line = [f"{f},{e}\n" for f, e in zip(records["filename"], records["truth"])]
                 file.writelines(line)
+                
+        with open(Path(self.expdir) / "training_curve.csv", 'a') as f:
+            acc = torch.FloatTensor(records["acc"]).mean().item()
+            loss = torch.FloatTensor(records["loss"]).mean().item()
+            f.write(f'{global_step},{mode},{acc},{loss}\n')
 
         return save_names
