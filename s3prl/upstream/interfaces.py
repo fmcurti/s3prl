@@ -260,13 +260,27 @@ class Featurizer(nn.Module):
         feature = [f[:l] for f, l in zip(paired_feature, feature_len)]
         return feature
 
+    def dynamic_downsample(self, paired_feature: Tensor, feature_lengths: List[int]):
+        assert paired_feature.dim() == 3, "(batch_size, max_seq_len, feat_dim)"
+        feature_len = feature_lengths
+        feature = [f[:l] for f, l in zip(paired_feature, feature_len)]
+        return feature
+        
+    
     def forward(
         self,
         paired_wavs: List[Tensor],
         paired_features: Dict[str, Union[Tensor, List[Tensor], Dict[str, Tensor]]],
     ):
+        feature_lengths = None
+        if "feature_lengths" in paired_features:
+            feature_lengths = paired_features["feature_lengths"]
         feature = self._select_feature(paired_features)
+        
         if isinstance(feature, (list, tuple)):
             feature = self._weighted_sum(feature)
+            
+        if feature_lengths is not None:
+            return self.dynamic_downsample(feature, feature_lengths)
 
         return self.tolist(paired_wavs, feature)
