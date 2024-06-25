@@ -1,11 +1,11 @@
 runner:
-  total_steps: 30000
+  total_steps: 15000
   gradient_clipping: 1
-  gradient_accumulate_steps: 8
+  gradient_accumulate_steps: 16
 
-  log_step: 500
-  eval_step: 1000
-  save_step: 1000
+  log_step: 250
+  eval_step: 250
+  save_step: 250
   max_keep: 1
   eval_dataloaders:
     - dev
@@ -13,14 +13,14 @@ runner:
 
 optimizer:
   name: TorchOptim
-  torch_optim_name: Adam
+  torch_optim_name: AdamW
   lr: 1.0e-4
 
 # comment the whole scheduler config block
 # to disable learning rate scheduling
-# scheduler:
-#   name: linear_schedule_with_warmup
-#   num_warmup_steps: 1400
+#scheduler:
+#  name: linear_schedule_with_warmup
+#  num_warmup_steps: 1400
 
 downstream_expert:
   datarc:
@@ -30,11 +30,11 @@ downstream_expert:
     pre_load: True
     train_batch_size: 2
     eval_batch_size: 2
-    num_workers: 2
+    num_workers: 4
     valid_ratio: 0.2
 
   modelrc:
-    projector_dim: 256
+    projector_dim: 16
     select: UtteranceLevel
 
     UtteranceLevel:
@@ -42,7 +42,7 @@ downstream_expert:
 
     DeepModel:
       model_type: CNNSelfAttention
-      hidden_dim: 20
+      hidden_dim: 8
       kernel_size: 5
       padding: 2
       pooling: 5
